@@ -183,55 +183,91 @@ static bool _validateOp(const Op* op) {
     return true;
 }
 
-static vector<Op*> generateOneSchedulePath(const Net* net, const int begin, const int end,
-                                           const vector<shared_ptr<Tensor>>& allTensors) {
+static vector<Op*> generateOneSchedulePath(const Net* net, const vector<int> &starts, const int top,
+                                           const vector<shared_ptr<Tensor>>& allTensors,
+                                           const std::unordered_map<int, const Op*>& tensorIndexOpMap,
+                                           const std::unordered_map<const Op*, int>& opIndexMap) {
     vector<Op*> oplists;
-    for (int i = begin; i < end; ++i) {
+    if (top < 0) {
+      int end = (int)net->oplists()->size();
+      for (int i = starts.empty() ? 0 : *std::min_element(starts.begin(), starts.end()); i < end; ++i) {
         auto op = net->oplists()->GetAs<Op>(i);
         if (op->type() == OpType_Input || !_validateOp(op)) {
-            continue;
+          continue;
         }
         oplists.emplace_back(const_cast<Op*>(op));
+      }
+    }
+    else {
+      std::set<const Op*> knownOps;
+      auto topOp = net->oplists()->GetAs<Op>(top);
+      if (topOp->type() != OpType_Input && _validateOp(topOp)) {
+        oplists.emplace_back(const_cast<Op*>(topOp));
+        knownOps.insert(topOp);
+      }
+      for (auto input: starts) {
+        knownOps.insert(net->oplists()->GetAs<Op>(input));
+      }
+      for (size_t i = 0; i < oplists.size(); i++) {
+        auto *output = oplists[i];
+        if (output->type() == OpType_Input || !_validateOp(output)) {
+          continue;
+        }
+        if (nullptr != output->inputIndexes()) {
+          auto data = output->inputIndexes()->data();
+          for (int j = 0, end = (int)output->inputIndexes()->size(); j < end; ++j) {
+            auto *op = tensorIndexOpMap.at(data[j]);
+            if (op->type() == OpType_Input || !_validateOp(op)) {
+              continue;
+            }
+            if (knownOps.find(op) == knownOps.end()) {
+              oplists.insert(oplists.begin() + i + 1, const_cast<Op*>(op));
+              knownOps.insert(op);
+            }
+          }
+        }
+      }
+      std::reverse(oplists.begin(), oplists.end());
+      std::sort(oplists.begin(), oplists.end(), [&opIndexMap](auto a, auto b) -> int {
+        return opIndexMap.at(a) - opIndexMap.at(b);
+      });
     }
     return oplists;
 }
 
-static vector<vector<Op*>> generateSchedulePath(const Net* net, const ScheduleConfig& configs,
-                                                const vector<shared_ptr<Tensor>>& allTensors) {
+static vector<vector<Op*>> generateSchedulePath(const Net* net, const ScheduleConfig& config,
+                                                const vector<shared_ptr<Tensor>>& allTensors,
+                                                const std::unordered_map<int, const Op*>& tensorIndexOpMap,
+                                                const std::unordered_map<const Op*, int>& opIndexMap) {
     vector<vector<Op*>> oplists;
-    vector<string> inputs(configs.path.inputs);
-    vector<string> outputs(configs.path.outputs);
-    auto maxSize = std::max(inputs.size(), outputs.size());
-    inputs.resize(maxSize);
-    outputs.resize(maxSize);
 
-    for (int i = 0; i < inputs.size(); i++) {
-        string in  = inputs[i];
-        string out = outputs[i];
-        int start  = 0;
-        int end    = net->oplists()->size();
+    vector<int> starts;
+    for (auto &in: config.path.inputs) {
         if (in.length() > 0) {
             auto pos = _findOpPosition(in, net);
             if (-1 == pos) {
                 MNN_PRINT("Can't find %s op as start op\n", in.c_str());
-            } else {
-                start = pos;
+                return oplists;
+            }
+            else {
+              starts.push_back(pos);
             }
         }
+    }
+    for (auto &out: config.path.outputs) {
+        int top = -1;
         if (out.length() > 0) {
             auto pos = _findOpPosition(out, net);
             if (-1 == pos) {
                 MNN_PRINT("Can't find %s op as end op\n", out.c_str());
+                oplists.clear();
+                break;
             } else {
-                end = pos + 1;
+                top = pos;
             }
         }
-        if (start > end) {
-            MNN_PRINT("op order incorrect end op '%s' before begin op '%s',please check!\n", out.c_str(), in.c_str());
-        } else {
-            vector<Op*> path = generateOneSchedulePath(net, start, end, allTensors);
-            oplists.emplace_back(path);
-        }
+        vector<Op*> path = generateOneSchedulePath(net, starts, top, allTensors, tensorIndexOpMap, opIndexMap);
+        oplists.emplace_back(path);
     }
 
     return oplists;
@@ -251,12 +287,26 @@ static void generateScheduleGraph(vector<const Op*>& ops, const Net* net, const 
         }
         return;
     }
-    vector<vector<Op*>> paths = generateSchedulePath(net, configs, allTensors);
+    std::unordered_map<int, const Op*> tensorIndexOpMap;
+    for (int i = 0; i < net->oplists()->size(); i++) {
+      auto *op = net->oplists()->GetAs<Op>(i);
+      if (op->outputIndexes() != nullptr) {
+        auto *data = op->outputIndexes()->data();
+        for (auto j = 0; j < op->outputIndexes()->size(); j++) {
+          tensorIndexOpMap[data[j]] = op;
+        }
+      }
+    }
+    std::unordered_map<const Op*, int> opIndexMap;
+    for (int i = 0; i < net->oplists()->size(); i++) {
+      opIndexMap[net->oplists()->GetAs<Op>(i)] = i;
+    }
+    vector<vector<Op*>> paths = generateSchedulePath(net, configs, allTensors, tensorIndexOpMap, opIndexMap);
 
     unique_ptr<DirectedAcyclicGraph<Op*>> graph(new DirectedAcyclicGraph<Op*>());
 
     // add Node
-    unordered_map<Op*, shared_ptr<Node<Op*>>> opMaps;
+    unordered_map<const Op*, shared_ptr<Node<Op*>>> opMaps;
     for (vector<Op*> path : paths) {
         for (Op* op : path) {
             if (opMaps.find(op) == opMaps.end()) {
@@ -268,15 +318,16 @@ static void generateScheduleGraph(vector<const Op*>& ops, const Net* net, const 
     }
 
     // add edges
-    for (vector<Op*> path : paths) {
-        shared_ptr<Node<Op*>> pre = nullptr;
-        for (Op* op : path) {
-            shared_ptr<Node<Op*>> n = opMaps[op];
-            if (nullptr == pre) {
-                pre = n;
-            } else {
-                graph->AddEdge(pre, n);
-                pre = n;
+    for (auto iter: opMaps) {
+        auto *op = iter.first;
+        if (op->inputIndexes() != nullptr) {
+            auto data = op->inputIndexes()->data();
+            for (int j = 0, end = (int)op->inputIndexes()->size(); j < end; ++j) {
+                auto *inputOp = tensorIndexOpMap[data[j]];
+                auto preIter = opMaps.find(inputOp);
+                if (preIter != opMaps.end()) {
+                  graph->AddEdge(preIter->second, iter.second);
+                }
             }
         }
     }
