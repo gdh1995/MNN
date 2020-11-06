@@ -27,8 +27,20 @@ public:
             auto shape = op->main_as_Reshape()->dims();
             dimSize    = shape->size();
             shapes.resize(dimSize);
-            for (int i = 0; i < dimSize; ++i) {
+            for (int i = 0, zeros = 0; i < dimSize; ++i) {
                 shapes[i] = shape->data()[i];
+                if (shapes[i] == 0) {
+                    if (i >= zeros && zeros >= input->buffer().dimensions) {
+                        shapes.resize(i);
+                        break;
+                    }
+                    zeros++;
+                }
+            }
+            if ((int)shapes.size() < dimSize) {
+                for (int j = (int)shapes.size(); j < dimSize; ++j) {
+                    MNN_CHECK(shape->data()[j] == 0, "Reshape: too many referred dims");
+                }
             }
         } else {
             // shape which is getted at the runtime

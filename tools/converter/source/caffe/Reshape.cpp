@@ -28,10 +28,22 @@ void Reshape::run(MNN::OpT* dstOp, const caffe::LayerParameter& parameters, cons
     auto reshape      = new MNN::ReshapeT;
     dstOp->main.value = reshape;
     auto c            = parameters.reshape_param();
+    auto axis         = c.axis();
+    auto num_axes     = c.num_axes();
     DCHECK(c.has_shape()) << "Reshape Param ERROR!";
+    DCHECK(parameters.bottom_size() == 1) << "Reshape Param has too many bottoms in layer " << parameters.name();
+    DCHECK(axis >= 0) << "Reshape Param has an unsupported negative axis (" << axis << ") in layer " << parameters.name();
     auto shape = c.shape();
+    for (int i = 0; i < axis; i++) {
+        reshape->dims.push_back(0);
+    }
     for (int i = 0; i < shape.dim_size(); ++i) {
         reshape->dims.push_back(shape.dim(i));
+    }
+    if (num_axes >= 0) {
+        for (int i = axis + num_axes; i < 4; ++i) {
+            reshape->dims.push_back(0);
+        }
     }
 }
 static OpConverterRegister<Reshape> a("Reshape");
