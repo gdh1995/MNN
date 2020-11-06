@@ -47,10 +47,27 @@ public:
             MNN_PRINT("Error for binary op: input0's type != input1's type\n");
             return false;
         }
-        if (input0->dimensions() < input1->dimensions()) {
+        int input0Dims = input0->dimensions();
+        int input1Dims = input1->dimensions();
+        if (input0Dims < input1Dims) {
+            bool areTailAllOnes = true;
+            for (int i = input1Dims - input0Dims; i < input1Dims; i++) {
+                if (input1->buffer().dim[i].extent != 1) {
+                    areTailAllOnes = false;
+                    break;
+                }
+            }
+            if (areTailAllOnes) {
+                input1Dims = input0Dims;
+            }
+        }
+        if (input0Dims < input1Dims) {
             auto temp = input0;
             input0 = input1;
             input1 = temp;
+            auto tempDim = input0Dims;
+            input0Dims = input1Dims;
+            input1Dims = tempDim;
         }
         TensorUtils::getDescribe(output)->dimensionFormat = TensorUtils::getDescribe(input0)->dimensionFormat;
 
@@ -79,8 +96,8 @@ public:
         }
         
         // else if broadcast NOT supported -> failed
-        const int maxDimensions = input0->dimensions();
-        const int diffDimension = input0->dimensions() - input1->dimensions();
+        int maxDimensions = input0Dims;
+        int diffDimension = input0Dims - input1Dims;
         
         std::vector<int> outputDims(maxDimensions);
         for (int i = 0; i < maxDimensions; i++) {
