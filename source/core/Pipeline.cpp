@@ -202,11 +202,12 @@ ErrorCode Pipeline::Unit::prepare(Backend* bn, Backend* cpuBn) {
     MNN_PRINT("Outputs:\n");
     for (auto o : mOutputs) {
         if (o->dimensions() == 0) {
-            MNN_PRINT("\t*Scalar*");
+            MNN_PRINT("\t*Scalar* ");
         }
         for (int i = 0; i < o->dimensions(); ++i) {
             MNN_PRINT("%d, ", o->length(i));
         }
+        MNN_PRINT("format=%d\n", TensorUtils::getDescribe(o)->dimensionFormat);
         MNN_PRINT("\n");
     }
 #endif
