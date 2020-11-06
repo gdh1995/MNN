@@ -432,6 +432,12 @@ Schedule::ScheduleInfo Schedule::schedule(const Net* net, const std::vector<Sche
     for (int i = 0; i < net->tensorName()->size(); ++i) {
         tensorNameIndexMap[net->tensorName()->Get(i)->str()] = i;
     }
+    std::unordered_map<std::string, const Op *> opNameIndexMap;
+    for (int i = 0; i < net->oplists()->size(); ++i) {
+        auto op = net->oplists()->GetAs<Op>(i);
+        opNameIndexMap[op->name()->str()] = op;
+    }
+    bool hasCustomOutputs = false;
     for (auto& config : configs) {
         for (const auto& name : config.saveTensors) {
             if (tensorNameIndexMap.count(name)) {
@@ -440,8 +446,19 @@ Schedule::ScheduleInfo Schedule::schedule(const Net* net, const std::vector<Sche
                 MNN_PRINT("Bad outputname: %s\n", name.c_str());
             }
         }
+        for (auto& name : config.path.outputs) {
+            auto op = opNameIndexMap.find(name)->second;
+            if (op != nullptr && op->outputIndexes() != nullptr) {
+                auto *data = op->outputIndexes()->data();
+                for (int i = 0; i < op->outputIndexes()->size(); i++) {
+                    auto outputIndex = data[i];
+                    outputIndexesDiff.insert(outputIndex);
+                    hasCustomOutputs = true;
+                }
+            }
+        }
     }
-    if (net->outputName()) {
+    if (!hasCustomOutputs && net->outputName() != nullptr) {
         for (int i = 0; i < net->outputName()->size(); ++i) {
             std::string name = net->outputName()->Get(i)->str();
             if (tensorNameIndexMap.count(name)) {
