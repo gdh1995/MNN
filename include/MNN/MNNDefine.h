@@ -28,7 +28,7 @@
 #define MNN_ERROR(format, ...) printf(format, ##__VA_ARGS__)
 #endif
 
-#ifdef DEBUG
+#ifndef NDEBUG
 #define MNN_ASSERT(x)                                            \
     {                                                            \
         int res = (x);                                           \
