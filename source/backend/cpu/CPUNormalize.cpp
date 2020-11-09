@@ -120,7 +120,6 @@ static void _scaleSingleValue(const float* input, float* output, float* scale, i
 }
 ErrorCode CPUNormalize::onExecute(const std::vector<Tensor*>& inputs, const std::vector<Tensor*>& outputs) {
     MNN_ASSERT(!mAcrossSpatial);
-    MNN_ASSERT(!mChannelShared);
     auto inputTensor  = inputs[0];
     auto outputTensor = outputs[0];
 
@@ -149,8 +148,10 @@ ErrorCode CPUNormalize::onExecute(const std::vector<Tensor*>& inputs, const std:
                mEps);
 
     if (mChannelShared) {
-        _scaleSingleValue(mSourceStorage.host<float>(), mSourceStorage.host<float>(), mScale.get(), area,
-                          inputTensor->channel());
+        if (mScale.get()[0] != 1) {
+            _scaleSingleValue(mSourceStorage.host<float>(), mSourceStorage.host<float>(), mScale.get(), area,
+                              inputTensor->channel());
+        }
     } else {
         _scaleChannel(mSourceStorage.host<float>(), mSourceStorage.host<float>(), mScale.get(), area,
                       inputTensor->channel());

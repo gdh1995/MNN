@@ -21,8 +21,11 @@ public:
         auto input     = inputs[0];
         auto parameter = op->main_as_InnerProduct();
 
-        MNN_ASSERT(2 == input->buffer().dimensions);
-        output->buffer().dimensions    = input->buffer().dimensions;
+        MNN_ASSERT(2 <= input->buffer().dimensions);
+        for (int i = 2; i < input->buffer().dimensions; i++) {
+          MNN_ASSERT(input->buffer().dim[i].extent == 1);
+        }
+        output->buffer().dimensions    = 2;
         output->buffer().dim[0].extent = input->buffer().dim[0].extent;
         output->buffer().dim[1].extent = parameter->outputCount();
         output->buffer().type = halide_type_of<float>();
