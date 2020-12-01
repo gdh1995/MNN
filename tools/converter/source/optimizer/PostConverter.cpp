@@ -60,7 +60,7 @@ std::unique_ptr<MNN::NetT> optimizeNet(std::unique_ptr<MNN::NetT>& originNet, bo
         "RemoveDropout",
 
         // Turn InnerProduct from Caffe / Onnx to Convolution
-        "TransformInnerProduct",
+        // "TransformInnerProduct",
 
         // Turn Im2Seq from Caffe to Reshape
         "TransformIm2Seq",

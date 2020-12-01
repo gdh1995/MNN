@@ -162,7 +162,7 @@ std::shared_ptr<Executor> Executor::getGlobalExecutor() {
     });
     return gExecutor;
 }
-
+#define MNN_EXPRESS_ERROR_REPORT
 ErrorCode Executor::computeInfo(Expr* expr) {
     MNN_ASSERT(nullptr != expr);
     MNN_ASSERT(nullptr != expr->get());
@@ -207,14 +207,14 @@ ErrorCode Executor::computeInfo(Expr* expr) {
         auto tensor = mStackOutputs[i];
 #ifdef MNN_EXPRESS_ERROR_REPORT
         bool hasNoneOutput = false;
-        // MNN_PRINT("Output(%d): [", i);
+        MNN_PRINT("%s.Output(%d): [", expr->name().c_str(), i);
         for (int j = 0; j < tensor->dimensions(); ++j) {
-            // MNN_PRINT("%d, ", tensor->length(j));
+            MNN_PRINT("%d, ", tensor->length(j));
             if (tensor->length(j) <= 0) {
                 hasNoneOutput = true;
             }
         }
-        // MNN_PRINT("]\n");
+        MNN_PRINT("]\n");
         if (hasNoneOutput) {
             if (nullptr != op->name()) {
                 MNN_PRINT("The output has 0 elements for %s\n", op->name()->c_str());
