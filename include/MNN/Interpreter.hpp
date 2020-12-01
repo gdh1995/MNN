@@ -248,7 +248,7 @@ public:
      */
     const char* bizCode() const;
 
-private:
+public:
     static Interpreter* createFromBufferInternal(Content* net);
 
     Content* mNet = nullptr;
