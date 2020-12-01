@@ -41,6 +41,7 @@ public:
                 for (int j = (int)shapes.size(); j < dimSize; ++j) {
                     MNN_CHECK(shape->data()[j] == 0, "Reshape: too many referred dims");
                 }
+                dimSize = (int)shapes.size();
             }
         } else {
             // shape which is getted at the runtime
