@@ -2,6 +2,8 @@
 
 [English Version](README.md)
 
+[MNN官网](http://www.mnn.zone)
+
 ## 简介
 MNN是一个高效、轻量的深度学习框架。它支持深度模型推理与训练，尤其在端侧的推理与训练性能在业界处于领先地位。目前，MNN已经在阿里巴巴的手机淘宝、手机天猫、优酷、钉钉、闲鱼等20多个App中使用，覆盖直播、短视频、搜索推荐、商品图像搜索、互动营销、权益发放、安全风控等70多个场景。此外，IoT等场景下也有若干应用。
 
@@ -66,7 +68,7 @@ Interpreter由Engine和Backends构成。前者负责模型的加载、计算图�
 
 三群：
 
-<img src="doc/DingTalkQR3.png" height="256"/>
+<img src="doc/DingTalkQR23.png" height="256"/>
 
 ## License
 Apache 2.0
@@ -78,7 +80,7 @@ MNN参考、借鉴了下列项目：
 - [Caffe](https://github.com/BVLC/caffe)
 - [flatbuffer](https://github.com/google/flatbuffers)
 - [gemmlowp](https://github.com/google/gemmlowp)
-- [Google Vulkan demo](http://www.github.com/googlesamples/android-vulkan-tutorials) 
+- [Google Vulkan demo](http://www.github.com/googlesamples/android-vulkan-tutorials)
 - [Halide](https://github.com/halide/Halide)
 - [Mace](https://github.com/XiaoMi/mace)
 - [ONNX](https://github.com/onnx/onnx)

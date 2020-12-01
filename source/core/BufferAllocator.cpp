@@ -10,7 +10,7 @@
 #include "core/Macro.h"
 
 //#define DUMP_USAGE
-
+//#define MNN_DEBUG_MEMORY
 namespace MNN {
 BufferAllocator::Node::~Node() {
     if (nullptr == parent) {
@@ -69,7 +69,7 @@ void BufferAllocator::returnMemory(FREELIST* listP, std::shared_ptr<Node> node, 
         while (needMerge) {
             // collect all subnodes
             for (auto iter = list.begin(); iter != list.end();) {
-                if (iter->second->parent.get() == parent.get()) {
+                if (iter->second->parent == parent) {
                     iter = list.erase(iter);
                     continue;
                 }
@@ -79,7 +79,7 @@ void BufferAllocator::returnMemory(FREELIST* listP, std::shared_ptr<Node> node, 
             // do merge downside up
             list.insert(std::make_pair(parent->size, parent));
             needMerge = false;
-            if (parent->parent.get() != nullptr) {
+            if (parent->parent != nullptr) {
                 parent = parent->parent;
                 parent->useCount -= 1;
                 needMerge = parent->useCount == 0;
@@ -97,6 +97,7 @@ bool BufferAllocator::free(void* pointer, bool needRelease) {
     }
     if (needRelease) {
         MNN_ASSERT(x->second->parent == nullptr);
+        MNN_ASSERT(mTotalSize >= x->second->size);
         mTotalSize -= x->second->size;
         mUsedList.erase(x);
         return true;
@@ -118,6 +119,7 @@ bool BufferAllocator::free(void* pointer, bool needRelease) {
 }
 
 void BufferAllocator::release(bool allRelease) {
+    MNN_ASSERT(mGroups.empty());
     if (allRelease) {
         mUsedList.clear();
         mFreeList.clear();
@@ -125,7 +127,10 @@ void BufferAllocator::release(bool allRelease) {
         return;
     }
     for (auto f : mFreeList) {
-        mTotalSize -= f.first;
+        if (f.second->parent == nullptr) {
+            MNN_ASSERT(mTotalSize >= f.first);
+            mTotalSize -= f.first;
+        }
     }
     mFreeList.clear();
 }
@@ -191,8 +196,8 @@ void* BufferAllocator::getFromFreeList(FREELIST* list, size_t size, bool permite
     second->parent  = x->second;
     second->size    = x->second->size - sizeAlign;
     second->pointer = ((uint8_t*)x->second->pointer) + sizeAlign;
-    list->insert(std::make_pair(second->size, second));
     list->erase(x);
+    list->insert(std::make_pair(second->size, second));
     return pointer;
 }
 } // namespace MNN
