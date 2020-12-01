@@ -60,21 +60,23 @@ public:
             if (OpParameter_Reshape == mainType) {
                 auto shape = op->main_as_Reshape()->dims();
                 dimSize    = shape->size();
+                auto newDimSize = dimSize;
                 for (int i = 0, zeros = 0; i < dimSize; ++i) {
                     shapes[i] = shape->data()[i];
                     if (shapes[i] == 0) {
                         if (i >= zeros && zeros >= input->buffer().dimensions) {
-                            shapes.resize(i);
+                            newDimSize = i;
                             break;
                         }
                         zeros++;
                     }
                 }
-                if ((int)shapes.size() < dimSize) {
-                    for (int j = (int)shapes.size(); j < dimSize; ++j) {
+                if (newDimSize < dimSize) {
+                    for (int j = newDimSize; j < dimSize; ++j) {
                         MNN_CHECK(shape->data()[j] == 0, "Reshape: too many referred dims");
                     }
                 }
+                dimSize = newDimSize;
             } else {
                 // For old model compability
                 auto shape = op->main_as_QuantizedReshape()->dims();

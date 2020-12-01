@@ -377,7 +377,14 @@ Schedule::ScheduleInfo Schedule::schedule(const Net* net, const std::vector<Sche
                 auto *data = op->outputIndexes()->data();
                 for (int i = 0; i < op->outputIndexes()->size(); i++) {
                     auto outputIndex = data[i];
-                    outputIndexesDiff.insert(outputIndex);
+                    auto t = allTensors[outputIndex].get();
+                    if (TensorUtils::getDescribe(t)->usage == Tensor::InsideDescribe::NORMAL) {
+                      TensorUtils::getDescribe(t)->usage = Tensor::InsideDescribe::OUTPUT;
+                    }
+                    else {
+                      schedule.outputTensor.insert(
+                        std::make_pair(net->tensorName()->GetAsString(outputIndex)->c_str(), t));
+                    }
                     hasCustomOutputs = true;
                 }
             }
