@@ -196,10 +196,10 @@ void Interpreter::resizeSession(Session* session) {
 
 ErrorCode Interpreter::runSessionWithCallBack(const Session* session, const TensorCallBack& before,
                                               const TensorCallBack& after, bool sync) const {
-    auto beforeWrap = [&before](const std::vector<Tensor*>& tensors, const OperatorInfo* info) {
+    TensorCallBackWithInfo beforeWrap = [&before](const std::vector<Tensor*>& tensors, const OperatorInfo* info) {
         return before(tensors, info->name());
     };
-    auto afterWrap = [&after](const std::vector<Tensor*>& tensors, const OperatorInfo* info) {
+    TensorCallBackWithInfo afterWrap = [&after](const std::vector<Tensor*>& tensors, const OperatorInfo* info) {
         return after(tensors, info->name());
     };
     return runSessionWithCallBackInfo(session, beforeWrap, afterWrap, sync);
