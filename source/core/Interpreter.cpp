@@ -71,7 +71,8 @@ AutoStorage<uint8_t> &ContentBase::buffer() {
   return ptr->buffer;
 }
 
-const Net* ContentBase::net() {
+const Net* ContentBase::setupNetModel() {
+  ptr->net = GetNet(ptr->buffer.get());
   return ptr->net;
 }
 
