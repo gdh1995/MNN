@@ -76,7 +76,7 @@ struct Net;
 struct MNN_PUBLIC ContentBase {
   Content *ptr;
   AutoStorage<uint8_t> &buffer();
-  const Net* net();
+  const Net* setupNetModel();
 };
 
 class MNN_PUBLIC OperatorInfo {
