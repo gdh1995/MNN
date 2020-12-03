@@ -93,6 +93,10 @@ ContentBase* Interpreter::createContentFromBuffer(const void* buffer, size_t siz
   return new ContentBase { net };
 }
 
+const Net* Interpreter::getNet() {
+  return mNet->net;
+}
+
 Interpreter* Interpreter::createFromBufferInternal(Content* net) {
     if (nullptr == net) {
         MNN_PRINT("Buffer is null for create interpreter\n");
