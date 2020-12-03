@@ -258,6 +258,8 @@ public:
      */
     const char* bizCode() const;
 
+    const Net* getNet();
+
 public:
     static Interpreter* createFromBufferInternal(Content* net);
 
