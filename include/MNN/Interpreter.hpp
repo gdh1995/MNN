@@ -67,6 +67,15 @@ class Session;
 struct Content;
 class Tensor;
 class Backend;
+template <typename Ty>
+class AutoStorage;
+struct Net;
+
+struct MNN_PUBLIC ContentBase {
+  Content *ptr;
+  AutoStorage<uint8_t> &buffer();
+  const Net* net();
+};
 
 class MNN_PUBLIC OperatorInfo {
     struct Info;
@@ -106,6 +115,7 @@ public:
      * @return created net if success, NULL otherwise.
      */
     static Interpreter* createFromBuffer(const void* buffer, size_t size);
+    static ContentBase* createContentFromBuffer(const void* buffer, size_t size);
     ~Interpreter();
 
 public:

@@ -19,7 +19,7 @@ namespace MNN {
 
 struct Content {
     AutoStorage<uint8_t> buffer;
-    const Net* net = nullptr;
+    const Net* net;
     std::vector<std::unique_ptr<Session>> sessions;
     std::map<const Tensor*, const Session*> tensorMap;
 };
@@ -65,6 +65,23 @@ Interpreter* Interpreter::createFromBuffer(const void* buffer, size_t size) {
     ::memcpy(net->buffer.get(), buffer, size);
 
     return createFromBufferInternal(net);
+}
+
+AutoStorage<uint8_t> &ContentBase::buffer() {
+  return ptr->buffer;
+}
+
+const Net* ContentBase::net() {
+  return ptr->net;
+}
+
+ContentBase* Interpreter::createContentFromBuffer(const void* buffer, size_t size) {
+  auto net = new Content;
+  net->buffer.reset((int)size);
+  if (net->buffer.get() != nullptr) {
+    ::memcpy(net->buffer.get(), buffer, size);
+  }
+  return new ContentBase { net };
 }
 
 Interpreter* Interpreter::createFromBufferInternal(Content* net) {
