@@ -372,8 +372,9 @@ Schedule::ScheduleInfo Schedule::schedule(const Net* net, const std::vector<Sche
             }
         }
         for (auto& name : config.path.outputs) {
-            auto op = opNameIndexMap.find(name)->second;
-            if (op != nullptr && op->outputIndexes() != nullptr) {
+            auto opPtr = opNameIndexMap.find(name);
+            auto op = opPtr->second;
+            if (opPtr != opNameIndexMap.end() && op != nullptr && op->outputIndexes() != nullptr) {
                 auto *data = op->outputIndexes()->data();
                 for (int i = 0; i < op->outputIndexes()->size(); i++) {
                     auto outputIndex = data[i];
@@ -387,6 +388,9 @@ Schedule::ScheduleInfo Schedule::schedule(const Net* net, const std::vector<Sche
                     }
                     hasCustomOutputs = true;
                 }
+            }
+            else {
+              MNN_PRINT("Bad path.output: %s\n", name.c_str());
             }
         }
     }
