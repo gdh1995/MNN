@@ -10,7 +10,6 @@
 #include "core/Backend.hpp"
 #include "core/Macro.h"
 #include "core/SizeComputer.hpp"
-#include <sstream>
 #include "core/TensorUtils.hpp"
 #include "core/WrapExecution.hpp"
 //#define MNN_OPEN_TIME_TRACE
@@ -312,33 +311,6 @@ Pipeline::Pipeline(const std::vector<Schedule::PipelineInfo>& infos, Backend* ba
 ErrorCode Pipeline::prepare() {
     mBackend->onResizeBegin();
     for (auto& u : mUnits) {
-        auto name1 = u->mOriginOp->name()->str();
-        printf("[prep] unit #%s\n", name1.c_str());
-        std::vector<std::string> inputs, outputs;
-        int i1 = 0;
-        for (auto input : u->mInputs) {
-            auto ptr = input->buffer().dim;
-            std::ostringstream format;
-            format << "input_idx=" << u->mOriginOp->inputIndexes()->data()[i1++] << ": ";
-            for (int i = 0; i < input->buffer().dimensions; i++) {
-            format << ptr[i].extent << ", ";
-            }
-            format << "unit_type=" << (int) input->getType().code;
-            inputs.push_back(format.str());
-            printf("\t%s\n", inputs.end()[-1].c_str());
-        }
-        i1 = 0;
-        for (auto output : u->mOutputs) {
-            auto ptr = output->buffer().dim;
-            std::ostringstream format;
-            format << "output_idx=" << u->mOriginOp->outputIndexes()->data()[i1++] << ": ";
-            for (int i = 0; i < output->buffer().dimensions; i++) {
-            format << ptr[i].extent << ", ";
-            }
-            format << "unit_type=" << (int)output->getType().code;
-            outputs.push_back(format.str());
-            printf("\t%s\n", outputs.end()[-1].c_str());
-        }
         auto code = u->prepare(mBackend, mBackupBackend);
         if (NO_ERROR != code) {
             if (nullptr != u->mOriginOp->name()) {
