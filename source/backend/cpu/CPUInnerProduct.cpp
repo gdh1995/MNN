@@ -28,7 +28,27 @@ public:
         }
         mWeight.clear();
         AutoStorage<float> cache(mWeight.size());
-        CPUConvolution::reorderWeight(mWeight.get(), parameter->weight()->data(), srcCount, outputCount, 1, cache.get());
+        float *rawWeightData = const_cast<float*>(parameter->weight()->data());
+        if (parameter->transpose()) {
+          // K = srcCount; N = outputCount
+          bool does_modify_parameter = false;
+          float *dst = does_modify_parameter ? cache.get() : mWeight.get();
+          const int output0 = outputCount;
+          const int output1 = srcCount;
+          for (int i = 0; i < output0; i++) {
+            for (int j = 0; j < output1; j++) {
+              dst[i * output1 + j] = rawWeightData[i + j * output0];
+            }
+          }
+          if (does_modify_parameter) {
+            ::memcpy(rawWeightData, dst, output0 * output1 * sizeof(float));
+            (reinterpret_cast<flatbuffers::Table*>(const_cast<InnerProduct*>(parameter)))->SetField<uint8_t>(InnerProduct::VT_TRANSPOSE, 0, 0);
+          }
+          else {
+            rawWeightData = dst;
+          }
+        }
+        CPUConvolution::reorderWeight(mWeight.get(), rawWeightData, srcCount, outputCount, 1, cache.get());
         mBias.reset(ALIGN_UP4(outputCount));
         mBias.clear();
         ::memcpy(mBias.get(), parameter->bias()->data(), parameter->bias()->size() * sizeof(float));
