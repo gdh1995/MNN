@@ -26,15 +26,25 @@ public:
         auto cache          = context.searchConst(op);
         if (!cache.empty()) {
             eps   = cache[0].get();
-            scale = cache[1].get();
+            scale = cache.size() > 1 ? cache[1].get() : nullptr;
         } else {
             auto mEps              = normalize->eps();
             auto epsT              = context.allocConst(op, {}, halide_type_of<float>());
             epsT->host<float>()[0] = mEps;
             eps                    = epsT.get();
-            auto mScale = context.allocConst(op, {1, (int)normalize->scale()->size(), 1}, halide_type_of<float>());
-            ::memcpy(mScale->host<float>(), normalize->scale()->data(), normalize->scale()->size() * sizeof(float));
-            scale = mScale.get();
+            if (mChannelShared) {
+              MNN_ASSERT(normalize->scale() == nullptr || normalize->scale()->size() <= 1);
+              if (normalize->scale() != nullptr && normalize->scale()->size() == 1) {
+                if (normalize->scale()->data()[0] != 1.0f) {
+                  MNN_ERROR("unsupported .scale in Normalize #%s : should be 1", op->name()->c_str());
+                }
+              }
+            }
+            else {
+              auto mScale = context.allocConst(op, { 1, (int)normalize->scale()->size(), 1 }, halide_type_of<float>());
+              ::memcpy(mScale->host<float>(), normalize->scale()->data(), normalize->scale()->size() * sizeof(float));
+              scale = mScale.get();
+            }
         }
         auto inputTensor = inputs[0];
         // Across channel
@@ -42,7 +52,7 @@ public:
         int axis    = inputTensor->channel();
         int outside = 1;
 
-        {
+        if (scale != nullptr) {
             // 1, axis, 1 -> outside, axis, inside
             std::shared_ptr<Tensor> broadCastScale(Tensor::createDevice<float>({outside, axis, inside}));
             res.extras.emplace_back(broadCastScale);
@@ -114,14 +124,19 @@ public:
 
         std::shared_ptr<Tensor> output0(Tensor::createDevice<float>({outside, axis, inside}));
         res.extras.emplace_back(output0);
-        std::shared_ptr<Tensor> output1(Tensor::createDevice<float>({outside, axis, inside}));
-        res.extras.emplace_back(output1);
         res.command.emplace_back(
-            GeometryComputerUtils::makeBinary(BinaryOpOperation_MUL, inputRaw.get(), scaleFirst.get(), output0.get()));
-        res.command.emplace_back(
-            GeometryComputerUtils::makeBinary(BinaryOpOperation_MUL, output0.get(), scale, output1.get()));
+          GeometryComputerUtils::makeBinary(BinaryOpOperation_MUL, inputRaw.get(), scaleFirst.get(), output0.get()));
+        if (scale != nullptr) {
+          std::shared_ptr<Tensor> output1(Tensor::createDevice<float>({ outside, axis, inside }));
+          res.extras.emplace_back(output1);
+          res.command.emplace_back(
+              GeometryComputerUtils::makeBinary(BinaryOpOperation_MUL, output0.get(), scale, output1.get()));
+          GeometryComputerUtils::makeRawAddressRef(outputs[0], output1.get(), 0, inside * outside * axis);
+        }
+        else {
+          GeometryComputerUtils::makeRawAddressRef(outputs[0], output0.get(), 0, inside * outside * axis);
+        }
 
-        GeometryComputerUtils::makeRawAddressRef(outputs[0], output1.get(), 0, inside * outside * axis);
         return true;
     }
     bool computeForLRN(const Op* op, const std::vector<Tensor*>& inputs, const std::vector<Tensor*>& outputs,
