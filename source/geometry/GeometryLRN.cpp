@@ -125,16 +125,15 @@ public:
         std::shared_ptr<Tensor> output0(Tensor::createDevice<float>({outside, axis, inside}));
         res.extras.emplace_back(output0);
         res.command.emplace_back(
-          GeometryComputerUtils::makeBinary(BinaryOpOperation_MUL, inputRaw.get(), scaleFirst.get(), output0.get()));
+            GeometryComputerUtils::makeBinary(BinaryOpOperation_MUL, inputRaw.get(), scaleFirst.get(), output0.get()));
         if (scale != nullptr) {
-          std::shared_ptr<Tensor> output1(Tensor::createDevice<float>({ outside, axis, inside }));
-          res.extras.emplace_back(output1);
-          res.command.emplace_back(
-              GeometryComputerUtils::makeBinary(BinaryOpOperation_MUL, output0.get(), scale, output1.get()));
-          GeometryComputerUtils::makeRawAddressRef(outputs[0], output1.get(), 0, inside * outside * axis);
-        }
-        else {
-          GeometryComputerUtils::makeRawAddressRef(outputs[0], output0.get(), 0, inside * outside * axis);
+            std::shared_ptr<Tensor> output1(Tensor::createDevice<float>({ outside, axis, inside }));
+            res.extras.emplace_back(output1);
+            res.command.emplace_back(
+                GeometryComputerUtils::makeBinary(BinaryOpOperation_MUL, output0.get(), scale, output1.get()));
+            GeometryComputerUtils::makeRawAddressRef(outputs[0], output1.get(), 0, inside * outside * axis);
+        } else {
+            GeometryComputerUtils::makeRawAddressRef(outputs[0], output0.get(), 0, inside * outside * axis);
         }
 
         return true;

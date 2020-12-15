@@ -184,7 +184,6 @@ ErrorCode Convolution1x1Strassen::onResize(const std::vector<Tensor *> &inputs, 
                 unit.mValid = false;
                 continue;
             }
-            unit.mValid = true;
             unit.mStracssenComputor.reset(new StrassenMatrixComputor(backend(), false, maxDepth));
             unit.mTempInput.reset(
                 Tensor::create<float>(std::vector<int>{icC4, planeSize, 4}, inputPtr + 4 * planeStart));
@@ -220,7 +219,6 @@ ErrorCode Convolution1x1Strassen::onResize(const std::vector<Tensor *> &inputs, 
                 unit.mValid = false;
                 continue;
             }
-            unit.mValid = true;
             auto ocStartWeight = (ocStart * 4) / hPack;
             auto ocWeightSize = std::min(UP_DIV((ocSize * 4), hPack), mWeight->length(0) - ocStartWeight);
             unit.mStracssenComputor.reset(new StrassenMatrixComputor(backend(), false, maxDepth));

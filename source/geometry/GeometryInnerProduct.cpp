@@ -87,23 +87,8 @@ public:
             weight = constTensors[0].get();
             bias = constTensors[1].get();
         } else {
-            auto weightTensor = context.allocConst(op, { outputCount, srcCount }, halide_type_of<float>());
-            if (parameter->transpose()) {
-              // K = srcCount; N = outputCount
-              bool does_modify_parameter = false;
-              float *rawWeightData = const_cast<float*>(parameter->weight()->data());
-              float *dst = weightTensor.get()->host<float>();
-              const int output0 = outputCount;
-              const int output1 = srcCount;
-              for (int i = 0; i < output0; i++) {
-                for (int j = 0; j < output1; j++) {
-                  dst[i * output1 + j] = rawWeightData[i + j * output0];
-                }
-              }
-            }
-            else {
-              ::memcpy(weightTensor.get()->host<float>(), parameter->weight()->data(), parameter->weight()->size() * sizeof(float));
-            }
+            auto weightTensor = context.allocConst(op, {outputCount, srcCount}, halide_type_of<float>());
+            ::memcpy(weightTensor.get()->host<float>(), parameter->weight()->data(), parameter->weight()->size()*sizeof(float));
             weight = weightTensor.get();
             auto biasTensor = context.allocConst(op, {batch, outputCount}, halide_type_of<float>());
             if (hasBias) {

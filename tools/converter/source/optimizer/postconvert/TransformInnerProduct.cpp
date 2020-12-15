@@ -57,7 +57,6 @@ public:
                 reshapeP->dims[i] = 1;
             }
             if (net->sourceType == MNN::NetSource_TENSORFLOW) {
-                CHECK_EQ(axis, 3) << " for layer=" << op->name;
                 reshapeP->dims[3] = -1;
                 reshapeP->dims[1] = 1;
                 reshapeP->dims[2] = 1;
