@@ -8,7 +8,6 @@
 
 #include "core/Pipeline.hpp"
 #include <string.h>
-#include <sstream>
 #include "core/Backend.hpp"
 #include "core/Macro.h"
 #include "core/TensorUtils.hpp"
