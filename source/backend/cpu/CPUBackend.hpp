@@ -36,7 +36,7 @@ private:
     std::shared_ptr<BufferAllocator> mStaticAllocator;
     std::shared_ptr<BufferAllocator> mDynamicAllocator;
     int mThreadNumber;
-    int mTaskIndex;
+    mutable int mTaskIndex;
     size_t mFlags;
     BackendConfig::MemoryMode mMemory;
     BackendConfig::PowerMode mPower;
@@ -46,6 +46,7 @@ private:
     // CPU features
     bool mIsSupportDot = false;
     bool mIsSupportFp16arith = false;
+    int mAcquiredTaskIndex;
     float mFlops = 0.0f;
     static Backend*(*gExtraCreate)(const Runtime* runtime);
 };
