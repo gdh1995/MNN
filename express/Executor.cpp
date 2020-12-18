@@ -17,6 +17,7 @@
 #ifdef MNN_EXPR_ENABLE_PROFILER
 #define MNN_EXPRESS_ERROR_REPORT
 #endif
+// #define MNN_EXPRESS_ERROR_REPORT
 #define MNN_EXPRESS_OPEN_MEMORY_REUSE
 namespace MNN {
 namespace Express {
@@ -151,7 +152,6 @@ std::shared_ptr<Executor> Executor::getGlobalExecutor() {
     });
     return gExecutor;
 }
-#define MNN_EXPRESS_ERROR_REPORT
 
 std::shared_ptr<Executor> Executor::newExecutor(MNNForwardType type,
                                                 const BackendConfig& config,

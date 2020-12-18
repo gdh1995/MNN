@@ -33,17 +33,16 @@ public:
             epsT->host<float>()[0] = mEps;
             eps                    = epsT.get();
             if (mChannelShared) {
-              MNN_ASSERT(normalize->scale() == nullptr || normalize->scale()->size() <= 1);
-              if (normalize->scale() != nullptr && normalize->scale()->size() == 1) {
-                if (normalize->scale()->data()[0] != 1.0f) {
-                  MNN_ERROR("unsupported .scale in Normalize #%s : should be 1", op->name()->c_str());
+                MNN_ASSERT(normalize->scale() == nullptr || normalize->scale()->size() <= 1);
+                if (normalize->scale() != nullptr && normalize->scale()->size() == 1) {
+                    if (normalize->scale()->data()[0] != 1.0f) {
+                        MNN_ERROR("unsupported .scale in Normalize #%s : should be 1", op->name()->c_str());
+                    }
                 }
-              }
-            }
-            else {
-              auto mScale = context.allocConst(op, { 1, (int)normalize->scale()->size(), 1 }, halide_type_of<float>());
-              ::memcpy(mScale->host<float>(), normalize->scale()->data(), normalize->scale()->size() * sizeof(float));
-              scale = mScale.get();
+            } else {
+                auto mScale = context.allocConst(op, {1, (int)normalize->scale()->size(), 1}, halide_type_of<float>());
+                ::memcpy(mScale->host<float>(), normalize->scale()->data(), normalize->scale()->size() * sizeof(float));
+                scale = mScale.get();
             }
         }
         auto inputTensor = inputs[0];

@@ -22,7 +22,7 @@ namespace MNN {
 
 struct Content {
     AutoStorage<uint8_t> buffer;
-    const Net* net;
+    const Net* net = nullptr;
     std::vector<std::unique_ptr<Session>> sessions;
     std::map<const Tensor*, const Session*> tensorMap;
     Interpreter::SessionMode callBackMode = Interpreter::Session_Debug;
