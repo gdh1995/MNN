@@ -47,8 +47,12 @@ private:
     ~ThreadPool();
 
     std::vector<std::thread> mWorkers;
+#ifdef MNN_USE_DYNAMIC_WORK_INDEX
+    std::unique_ptr<std::atomic_bool[]> mTaskAvailable;
+#else
     std::vector<bool> mTaskAvailable;
-    std::atomic<bool> mStop = {false};
+#endif
+    // std::atomic<bool> mStop = {false};
 
     std::vector<std::pair<TASK, std::vector<std::atomic_bool*>>> mTasks;
     std::condition_variable mCondition;

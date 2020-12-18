@@ -164,14 +164,23 @@ static int setSchedAffinity(const std::vector<int>& cpuIDs) {
 #endif // arch
 ThreadPool::ThreadPool(int numberThread) {
     mNumberThread = numberThread;
-    mActiveCount  = 0;
+    mActiveCount.store(0, std::memory_order_relaxed);
+#ifdef MNN_USE_DYNAMIC_WORK_INDEX
+    mTaskAvailable.reset(new std::atomic_bool[MNN_THREAD_POOL_MAX_TASKS]);
+#else
     mTaskAvailable.resize(MNN_THREAD_POOL_MAX_TASKS);
+#endif
     mTasks.resize(MNN_THREAD_POOL_MAX_TASKS);
 #ifdef DEBUG_TIMES
     g_times.resize(numberThread);
 #endif
     for (int t = 0; t < mTasks.size(); ++t) {
+#ifdef MNN_USE_DYNAMIC_WORK_INDEX
+        mTaskAvailable[t].store(true, std::memory_order_relaxed);
+#else
         mTaskAvailable[t] = true;
+#endif
+        mTasks[t].second.reserve(mNumberThread);
         for (int i = 0; i < mNumberThread; ++i) {
             mTasks[t].second.emplace_back(new std::atomic_bool{false});
         }
@@ -192,18 +201,19 @@ ThreadPool::ThreadPool(int numberThread) {
 #ifdef DEBUG_TIMES
             auto &record = g_times[threadIndex];
 #endif
-            while (!mStop) {
+            while (mActiveCount.load(std::memory_order_relaxed) >= 0) {
 #ifdef DEBUG_TIMES
                 auto t1 = std::chrono::high_resolution_clock::now();
 #endif
-                while (mActiveCount.load(std::memory_order_acquire) > 0) {
+                while (mActiveCount.load(std::memory_order_relaxed) > 0) {
                     for (int i = 0; i < MNN_THREAD_POOL_MAX_TASKS; ++i) {
-                        if (*mTasks[i].second[threadIndex]) {
+                        if (mTasks[i].second[threadIndex]->load(std::memory_order_relaxed)) {
+                            std::atomic_thread_fence(std::memory_order_acquire);
 #ifdef DEBUG_TIMES
                             auto t2 = std::chrono::high_resolution_clock::now();
 #endif
                             mTasks[i].first.first(threadIndex);
-                            { *mTasks[i].second[threadIndex] = false; }
+                            mTasks[i].second[threadIndex]->store(false, std::memory_order_release);
 #ifdef DEBUG_TIMES
                             std::get<1>(record) += std::chrono::high_resolution_clock::now() - t2;
                             std::get<0>(record)++;
@@ -216,17 +226,18 @@ ThreadPool::ThreadPool(int numberThread) {
                 std::get<2>(record) = std::chrono::high_resolution_clock::now() - t1;
 #endif
                 std::unique_lock<std::mutex> _l(mQueueMutex);
-                mCondition.wait(_l, [this] {
-                    return mStop.load(std::memory_order_acquire) || mActiveCount.load(std::memory_order_acquire) > 0;
-                });
+                mCondition.wait(_l, [this] { return mActiveCount.load(std::memory_order_acquire) > 0; });
             }
         });
     }
 }
 
 ThreadPool::~ThreadPool() {
-    mStop = true;
-    mCondition.notify_all();
+    mActiveCount.store(-1, std::memory_order_relaxed);
+    {
+      std::lock_guard<std::mutex> _l(mQueueMutex);
+      mCondition.notify_all();
+    }
     for (auto& worker : mWorkers) {
         worker.join();
     }
@@ -243,7 +254,7 @@ int ThreadPool::acquireWorkIndex() {
     }
 #ifdef MNN_USE_DYNAMIC_WORK_INDEX
     return DYNAMIC_WORK_INDEX;
-#endif
+#else
     std::lock_guard<std::mutex> _l(gInstance->mQueueMutex);
     for (int i = 0; i < MNN_THREAD_POOL_MAX_TASKS; ++i) {
         if (gInstance->mTaskAvailable[i]) {
@@ -252,6 +263,7 @@ int ThreadPool::acquireWorkIndex() {
         }
     }
     return INVALID_WORK_INDEX;
+#endif
 }
 void ThreadPool::releaseWorkIndex(int index) {
     if (nullptr == gInstance) {
@@ -259,24 +271,26 @@ void ThreadPool::releaseWorkIndex(int index) {
     }
 #ifdef MNN_USE_DYNAMIC_WORK_INDEX
     return;
-#endif
+#else
     if (index < 0 || index >= MNN_THREAD_POOL_MAX_TASKS) {
         return;
     }
     std::lock_guard<std::mutex> _l(gInstance->mQueueMutex);
     gInstance->mTaskAvailable[index] = true;
+#endif
 }
 
 int ThreadPool::active(int acquiredWorkIndex) {
     if (nullptr == gInstance) {
         return acquiredWorkIndex;
     }
-    int workIndex = acquiredWorkIndex;
+    int workIndex       = acquiredWorkIndex;
 #ifdef MNN_USE_DYNAMIC_WORK_INDEX
-    std::lock_guard<std::mutex> _l(gInstance->mQueueMutex);
-    if (gInstance->mActiveCount.load(std::memory_order_acquire) < MNN_THREAD_POOL_MAX_TASKS) {
+    if (gInstance->mActiveCount.load(std::memory_order_relaxed) < MNN_THREAD_POOL_MAX_TASKS) {
+        std::atomic_thread_fence(std::memory_order_acquire);
         for (int i = 0; i < MNN_THREAD_POOL_MAX_TASKS; ++i) {
-            if (gInstance->mTaskAvailable[i]) {
+            auto& task = gInstance->mTaskAvailable[i];
+            if (task.load(std::memory_order_relaxed) && task.exchange(false, std::memory_order_relaxed)) {
                 workIndex = i;
                 break;
             }
@@ -285,12 +299,9 @@ int ThreadPool::active(int acquiredWorkIndex) {
     if (workIndex == acquiredWorkIndex) {
         return INVALID_WORK_INDEX;
     }
-    gInstance->mTaskAvailable[workIndex] = false;
-    gInstance->mActiveCount++;
-#else
-    gInstance->mActiveCount++;
-    std::lock_guard<std::mutex> _l(gInstance->mQueueMutex);
 #endif
+    gInstance->mActiveCount.fetch_add(1, std::memory_order_relaxed);
+    std::lock_guard<std::mutex> _l(gInstance->mQueueMutex);
     gInstance->mCondition.notify_all();
     return workIndex;
 }
@@ -300,13 +311,12 @@ int ThreadPool::deactive(int workIndexInUse) {
     }
     int newWorkIndex = workIndexInUse;
 #ifdef MNN_USE_DYNAMIC_WORK_INDEX
-    std::lock_guard<std::mutex> _l(gInstance->mQueueMutex);
     if (workIndexInUse >= 0) {
-        gInstance->mTaskAvailable[workIndexInUse] = true;
+        gInstance->mTaskAvailable[workIndexInUse].store(true, std::memory_order_relaxed);
         newWorkIndex = DYNAMIC_WORK_INDEX;
     }
 #endif
-    gInstance->mActiveCount--;
+    gInstance->mActiveCount.fetch_sub(1, std::memory_order_relaxed);
     return newWorkIndex;
 }
 
@@ -325,7 +335,8 @@ void ThreadPool::enqueueInternal(TASK&& task, int index) {
 #ifdef DEBUG_TIMES
     auto t0 = std::chrono::high_resolution_clock::now();
 #endif
-    if (mActiveCount == 0) {
+    /**
+    if (mActiveCount.load(std::memory_order_relaxed) == 0) {
         for (int i = 0; i < task.second; ++i) {
             task.first(i);
         }
@@ -334,6 +345,7 @@ void ThreadPool::enqueueInternal(TASK&& task, int index) {
 #endif
         return;
     }
+    // */
     int workSize = task.second;
     if (workSize > mNumberThread) {
         mTasks[index].first = std::make_pair(
@@ -349,9 +361,10 @@ void ThreadPool::enqueueInternal(TASK&& task, int index) {
     }
     {
         for (int i = 1; i < workSize; ++i) {
-            *mTasks[index].second[i] = true;
+            mTasks[index].second[i]->store(true, std::memory_order_relaxed);
         }
     }
+    std::atomic_thread_fence(std::memory_order_acq_rel);
     mTasks[index].first.first(0);
 #ifdef DEBUG_TIMES
     std::get<1>(g_times[0]) += std::chrono::high_resolution_clock::now() - t0;
@@ -362,7 +375,7 @@ void ThreadPool::enqueueInternal(TASK&& task, int index) {
         std::this_thread::yield();
         complete = true;
         for (int i = 1; i < workSize; ++i) {
-            if (*mTasks[index].second[i]) {
+            if (mTasks[index].second[i]->load(std::memory_order_relaxed)) {
                 complete = false;
                 break;
             }
@@ -373,6 +386,7 @@ void ThreadPool::enqueueInternal(TASK&& task, int index) {
     std::get<2>(g_times[0]) += std::chrono::high_resolution_clock::now() - t0;
     g_steps[g_cur_step].first += std::chrono::high_resolution_clock::now() - t0;
 #endif
+    std::atomic_thread_fence(std::memory_order_acquire);
 }
 } // namespace MNN
 #endif
