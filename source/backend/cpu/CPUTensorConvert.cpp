@@ -172,7 +172,7 @@ ErrorCode CPUTensorConverter::convert(const Tensor* input, const Tensor* output)
     auto ob     = output->buffer();
     auto source = TensorUtils::getDescribe(input)->dimensionFormat;
     auto dest   = TensorUtils::getDescribe(output)->dimensionFormat;
-    if (ib.dimensions <= 1 || source == dest) {
+    if (ib.dimensions <= 1 && (ib.dim[0].extent % 4) == 0 || source == dest) {
         ::memcpy(ob.host, ib.host, input->size());
         return NO_ERROR;
     }
