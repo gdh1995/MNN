@@ -14,6 +14,9 @@
 #include "core/WrapExecution.hpp"
 #include "geometry/GeometryComputerUtils.hpp"
 #include "shape/SizeComputer.hpp"
+#ifdef DEBUG_TIMES
+#include <chrono>
+#endif
 //#define MNN_OPEN_TIME_TRACE
 #include <MNN/AutoTime.hpp>
 //#define MNN_DEBUG_TENSOR_SIZE
@@ -21,6 +24,12 @@
 
 #define MNN_FAST_RESIZE
 namespace MNN {
+
+#ifdef DEBUG_TIMES
+std::vector<std::tuple<int, std::chrono::nanoseconds, std::chrono::nanoseconds>> g_times;
+std::vector<std::pair<std::chrono::nanoseconds, std::chrono::nanoseconds>> g_steps;
+int g_cur_step;
+#endif
 
 OperatorInfo::OperatorInfo() {
     mContent = new Info;
@@ -303,9 +312,23 @@ ErrorCode Pipeline::allocMemory(bool supportDebug) {
 
 ErrorCode Pipeline::execute() {
     mBackend->onExecuteBegin();
+#ifdef DEBUG_TIMES
+    auto times_size = g_times.size();
+    g_times.resize(0);
+    g_times.resize(times_size);
+    g_steps.resize(0);
+    g_steps.resize(mBuffer.command.size());
+#endif
     for (int i = 0; i < mBuffer.command.size(); ++i) {
+#ifdef DEBUG_TIMES
+        auto t1 = std::chrono::high_resolution_clock::now();
+        g_cur_step = i;
+#endif
         auto& cmd = mBuffer.command[i];
         auto code = mExecutions[i]->onExecute(cmd.inputs, cmd.outputs);
+#ifdef DEBUG_TIMES
+        g_steps[i].second = std::chrono::high_resolution_clock::now() - t1;
+#endif
         if (NO_ERROR != code) {
             mBackend->onExecuteEnd();
             return code;

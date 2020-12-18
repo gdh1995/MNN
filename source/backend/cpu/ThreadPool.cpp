@@ -9,6 +9,9 @@
 #include "backend/cpu/ThreadPool.hpp"
 #include <string.h>
 #include <MNN/MNNDefine.h>
+#ifdef DEBUG_TIMES
+#include <chrono>
+#endif
 #ifdef __ANDROID__
 #include <stdint.h>
 #include <sys/syscall.h>
@@ -24,6 +27,13 @@
 namespace MNN {
 ThreadPool* ThreadPool::gInstance = nullptr;
 static std::mutex gInitMutex;
+
+#ifdef DEBUG_TIMES
+extern int g_cur_step;
+extern std::vector<std::pair<std::chrono::nanoseconds, std::chrono::nanoseconds>> g_steps;
+extern std::vector<std::tuple<int, std::chrono::nanoseconds, std::chrono::nanoseconds>> g_times;
+#endif
+
 int ThreadPool::init(int number) {
     if (1 >= number) {
         return 1;
@@ -157,6 +167,9 @@ ThreadPool::ThreadPool(int numberThread) {
     mActiveCount  = 0;
     mTaskAvailable.resize(MNN_THREAD_POOL_MAX_TASKS);
     mTasks.resize(MNN_THREAD_POOL_MAX_TASKS);
+#ifdef DEBUG_TIMES
+    g_times.resize(numberThread);
+#endif
     for (int t = 0; t < mTasks.size(); ++t) {
         mTaskAvailable[t] = true;
         for (int i = 0; i < mNumberThread; ++i) {
@@ -176,16 +189,32 @@ ThreadPool::ThreadPool(int numberThread) {
 #ifdef MNN_THREAD_LOCK_CPU
             int res = setSchedAffinity(sortedCPUIDs);
 #endif
+#ifdef DEBUG_TIMES
+            auto &record = g_times[threadIndex];
+#endif
             while (!mStop) {
+#ifdef DEBUG_TIMES
+                auto t1 = std::chrono::high_resolution_clock::now();
+#endif
                 while (mActiveCount.load(std::memory_order_acquire) > 0) {
                     for (int i = 0; i < MNN_THREAD_POOL_MAX_TASKS; ++i) {
                         if (*mTasks[i].second[threadIndex]) {
+#ifdef DEBUG_TIMES
+                            auto t2 = std::chrono::high_resolution_clock::now();
+#endif
                             mTasks[i].first.first(threadIndex);
                             { *mTasks[i].second[threadIndex] = false; }
+#ifdef DEBUG_TIMES
+                            std::get<1>(record) += std::chrono::high_resolution_clock::now() - t2;
+                            std::get<0>(record)++;
+#endif
                         }
                     }
                     std::this_thread::yield();
                 }
+#ifdef DEBUG_TIMES
+                std::get<2>(record) = std::chrono::high_resolution_clock::now() - t1;
+#endif
                 std::unique_lock<std::mutex> _l(mQueueMutex);
                 mCondition.wait(_l, [this] {
                     return mStop.load(std::memory_order_acquire) || mActiveCount.load(std::memory_order_acquire) > 0;
@@ -295,10 +324,16 @@ void ThreadPool::enqueue(TASK&& task, int index) {
 }
 
 void ThreadPool::enqueueInternal(TASK&& task, int index) {
+#ifdef DEBUG_TIMES
+    auto t0 = std::chrono::high_resolution_clock::now();
+#endif
     if (mActiveCount == 0) {
         for (int i = 0; i < task.second; ++i) {
             task.first(i);
         }
+#ifdef DEBUG_TIMES
+        g_steps[g_cur_step].first += std::chrono::high_resolution_clock::now() - t0;
+#endif
         return;
     }
     int workSize = task.second;
@@ -320,6 +355,10 @@ void ThreadPool::enqueueInternal(TASK&& task, int index) {
         }
     }
     mTasks[index].first.first(0);
+#ifdef DEBUG_TIMES
+    std::get<1>(g_times[0]) += std::chrono::high_resolution_clock::now() - t0;
+    std::get<0>(g_times[0])++;
+#endif
     bool complete = true;
     do {
         std::this_thread::yield();
@@ -332,6 +371,10 @@ void ThreadPool::enqueueInternal(TASK&& task, int index) {
         }
         // FUNC_PRINT(notComplete);
     } while (!complete);
+#ifdef DEBUG_TIMES
+    std::get<2>(g_times[0]) += std::chrono::high_resolution_clock::now() - t0;
+    g_steps[g_cur_step].first += std::chrono::high_resolution_clock::now() - t0;
+#endif
 }
 } // namespace MNN
 #endif
