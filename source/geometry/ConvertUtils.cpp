@@ -96,11 +96,12 @@ void ConvertUtils::broadcastto(Tensor* input, Tensor* output) {
     }
     int32_t inputShape[MNN_MAX_TENSOR_DIM];
     auto outputDim = output->dimensions();
+    auto inputDim = std::min(input->dimensions(), outputDim);
     for (int i=0; i<outputDim; ++i) {
         inputShape[i] = 1;
     }
-    int offset = outputDim - input->dimensions();
-    for (int i = 0; i < input->dimensions(); ++i) {
+    int offset = outputDim - inputDim;
+    for (int i = 0; i < inputDim; ++i) {
         inputShape[i + offset] = input->length(i);
     }
     // Compute Strides
