@@ -82,12 +82,12 @@ std::unique_ptr<NetT> PassManager::Run(std::unique_ptr<NetT>& net) {
         return this->RunAllPasses(originNet, inputs);
     };
     auto ctx = Express::OptimizeContext{
-        .subgraphs = subgraphs,
-        .is_training = context_->is_training,
-        .verbose = context_->verbose,
-        .source = context_->source,
-        .completed_subgraphs = {},
-        .RunOptimize = RunAllPassesImpl};
+        subgraphs,
+        context_->is_training,
+        context_->verbose,
+        context_->source,
+        {},
+        RunAllPassesImpl};
 
     Global<Express::OptimizeContext>::Reset(&ctx);
 
