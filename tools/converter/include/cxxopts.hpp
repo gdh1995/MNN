@@ -189,8 +189,8 @@ namespace {
 const std::string LQUOTE("\'");
 const std::string RQUOTE("\'");
 #else
-const std::string LQUOTE("‘");
-const std::string RQUOTE("’");
+const std::string LQUOTE("\u2018");
+const std::string RQUOTE("\u2019");
 #endif
 } // namespace
 
