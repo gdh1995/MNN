@@ -109,7 +109,7 @@ public:
             res.command.emplace_back(std::move(cmd));
         }
 
-        if (hasBias && batch > 1) {
+        if (hasBias && false) {
             tmpOutput.reset(new Tensor);
             tmpOutput->buffer().type = halide_type_of<float>();
             tmpOutput->buffer().dimensions = 2;
