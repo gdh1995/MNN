@@ -311,10 +311,11 @@ int ThreadPool::deactive(int workIndexInUse) {
     }
     int newWorkIndex = workIndexInUse;
 #ifdef MNN_USE_DYNAMIC_WORK_INDEX
-    if (workIndexInUse >= 0) {
-        gInstance->mTaskAvailable[workIndexInUse].store(true, std::memory_order_relaxed);
-        newWorkIndex = DYNAMIC_WORK_INDEX;
+    if (workIndexInUse < 0) {
+        return newWorkIndex;
     }
+    newWorkIndex = DYNAMIC_WORK_INDEX;
+    gInstance->mTaskAvailable[workIndexInUse].store(true, std::memory_order_relaxed);
 #endif
     gInstance->mActiveCount.fetch_sub(1, std::memory_order_relaxed);
     return newWorkIndex;
