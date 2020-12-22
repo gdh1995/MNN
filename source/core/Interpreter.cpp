@@ -24,7 +24,6 @@ struct Content {
     AutoStorage<uint8_t> buffer;
     const Net* net = nullptr;
     std::vector<std::unique_ptr<Session>> sessions;
-    std::map<const Tensor*, const Session*> tensorMap;
     Interpreter::SessionMode callBackMode = Interpreter::Session_Debug;
     Interpreter::SessionMode inputMode    = Interpreter::Session_Input_Inside;
     AutoStorage<uint8_t> cacheBuffer;
@@ -178,7 +177,6 @@ Interpreter::~Interpreter() {
         // If the session is running, we must not delete session
         std::unique_lock<std::mutex> _l(mNet->lock);
         mNet->sessions.clear();
-        mNet->tensorMap.clear();
     }
     delete mNet;
 }
@@ -225,7 +223,7 @@ Session* Interpreter::createMultiPathSession(const std::vector<ScheduleConfig>& 
         auto res = result->getCache();
         if (res.first != nullptr && res.second > 0) {
             do {
-                MNN_PRINT("Write cache to %s, size = %lu\n", mNet->cacheFile.c_str(), res.second);
+                MNN_PRINT("Write cache to %s, size = %llu\n", mNet->cacheFile.c_str(), (unsigned long long)res.second);
                 FILE* f = fopen(mNet->cacheFile.c_str(), "wb");
                 if (nullptr == f) {
                     MNN_ERROR("Open %s error\n", mNet->cacheFile.c_str());
@@ -274,15 +272,6 @@ Session* Interpreter::createSession(const ScheduleConfig& config, const RuntimeI
 bool Interpreter::releaseSession(Session* session) {
     std::unique_lock<std::mutex> _l(mNet->lock);
     for (auto iter = mNet->sessions.begin(); iter != mNet->sessions.end(); iter++) {
-        // TODO Delete tensormap
-        for (auto tIter = mNet->tensorMap.begin(); tIter != mNet->tensorMap.end();) {
-            if (tIter->second == session) {
-                tIter = mNet->tensorMap.erase(tIter);
-                continue;
-            }
-            tIter++;
-        }
-
         if ((*iter).get() == session) {
             mNet->sessions.erase(iter);
             return true;
@@ -292,7 +281,6 @@ bool Interpreter::releaseSession(Session* session) {
 }
 
 ErrorCode Interpreter::runSession(Session* session) const {
-    std::unique_lock<std::mutex> _l(mNet->lock);
     return session->run();
 }
 
@@ -300,9 +288,7 @@ Tensor* Interpreter::getSessionInput(const Session* session, const char* name) {
     if (session == nullptr) {
         return nullptr;
     }
-    std::unique_lock<std::mutex> _l(mNet->lock);
     auto tensor = session->getInput(name);
-    mNet->tensorMap.insert(std::make_pair(tensor, session));
     return tensor;
 }
 
@@ -310,32 +296,21 @@ Tensor* Interpreter::getSessionOutput(const Session* session, const char* name) 
     if (session == nullptr) {
         return nullptr;
     }
-    std::unique_lock<std::mutex> _l(mNet->lock);
     auto tensor = session->getOutput(name);
-    mNet->tensorMap.insert(std::make_pair(tensor, session));
     return tensor;
 }
 
 const std::map<std::string, Tensor*>& Interpreter::getSessionInputAll(const Session* session) const {
-    std::unique_lock<std::mutex> _l(mNet->lock);
     auto& tensors = session->getInputAll();
-    for (auto& iter : tensors) {
-        mNet->tensorMap.insert(std::make_pair(iter.second, session));
-    }
     return tensors;
 }
 
 const std::map<std::string, Tensor*>& Interpreter::getSessionOutputAll(const Session* session) const {
-    std::unique_lock<std::mutex> _l(mNet->lock);
     auto& tensors = session->getOutputAll();
-    for (auto& iter : tensors) {
-        mNet->tensorMap.insert(std::make_pair(iter.second, session));
-    }
     return tensors;
 }
 
 void Interpreter::resizeSession(Session* session) {
-    std::unique_lock<std::mutex> _l(mNet->lock);
     if (mNet->buffer.get() == nullptr) {
         MNN_ERROR("The model buffer has been released. Can't resize session\n");
         return;
@@ -358,7 +333,6 @@ ErrorCode Interpreter::runSessionWithCallBack(const Session* session, const Tens
 
 ErrorCode Interpreter::runSessionWithCallBackInfo(const Session* session, const TensorCallBackWithInfo& before,
                                                   const TensorCallBackWithInfo& callBack, bool sync) const {
-    std::unique_lock<std::mutex> _l(mNet->lock);
     return session->runWithCallBack(before, callBack, sync);
 }
 
@@ -375,16 +349,15 @@ void Interpreter::releaseModel() {
     }
 }
 
-void Interpreter::resizeTensor(Tensor* tensor, int batch, int channel, int height, int width) {
+void Interpreter::resizeTensor(Session *session, Tensor* tensor, int batch, int channel, int height, int width) {
     if (tensor->getDimensionType() == Tensor::TENSORFLOW) {
-        resizeTensor(tensor, {batch, height, width, channel});
+        resizeTensor(session, tensor, {batch, height, width, channel});
     } else {
-        resizeTensor(tensor, {batch, channel, height, width});
+        resizeTensor(session, tensor, {batch, channel, height, width});
     }
 }
 
-void Interpreter::resizeTensor(Tensor* tensor, const std::vector<int>& dims) {
-    std::unique_lock<std::mutex> _l(mNet->lock);
+void Interpreter::resizeTensor(Session *session, Tensor* tensor, const std::vector<int>& dims) {
     MNN_ASSERT(nullptr != tensor);
     bool dirty = false;
     if (tensor->buffer().dimensions != dims.size()) {
@@ -406,10 +379,7 @@ void Interpreter::resizeTensor(Tensor* tensor, const std::vector<int>& dims) {
     for (int i = 0; i < dims.size(); ++i) {
         tensor->buffer().dim[i].extent = dims[i];
     }
-
-    auto relatedSessionIter = mNet->tensorMap.find(tensor);
-    MNN_ASSERT(relatedSessionIter != mNet->tensorMap.end());
-    ((MNN::Session*)relatedSessionIter->second)->setNeedResize();
+    session->setNeedResize();
 }
 
 const char* Interpreter::bizCode() const {
@@ -430,7 +400,6 @@ ErrorCode Interpreter::updateSessionToModel(Session* session) {
 }
 
 bool Interpreter::getSessionInfo(const Session* session, SessionInfoCode code, void* ptr) {
-    std::unique_lock<std::mutex> _l(mNet->lock);
     if (nullptr == session || nullptr == ptr) {
         return true;
     }

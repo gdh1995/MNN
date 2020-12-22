@@ -79,9 +79,9 @@ public:
         interp->getSessionInfo(session, MNN::Interpreter::MEMORY, &initMemory);
         for (int i = 0; i < 100; ++i) {
             if (i % 2 == 0) {
-                interp->resizeTensor(input, {1, 3, 112, 112});
+                interp->resizeTensor(session, input, {1, 3, 112, 112});
             } else {
-                interp->resizeTensor(input, {1, 3, 224, 224});
+                interp->resizeTensor(session, input, {1, 3, 224, 224});
             }
             interp->resizeSession(session);
         }
@@ -115,9 +115,9 @@ public:
         auto input       = interp->getSessionInput(session, nullptr);
         
         {
-            interp->resizeTensor(input, {1, 3, 112, 112});
+            interp->resizeTensor(session, input, {1, 3, 112, 112});
             interp->resizeSession(session);
-            interp->resizeTensor(input, {1, 3, 224, 224});
+            interp->resizeTensor(session, input, {1, 3, 224, 224});
             interp->resizeSession(session);
         }
         float initMemory = 0.0f;
@@ -125,9 +125,9 @@ public:
         
         for (int i = 0; i < 100; ++i) {
             if (i % 2 == 0) {
-                interp->resizeTensor(input, {1, 3, 112, 112});
+                interp->resizeTensor(session, input, {1, 3, 112, 112});
             } else {
-                interp->resizeTensor(input, {1, 3, 224, 224});
+                interp->resizeTensor(session, input, {1, 3, 224, 224});
             }
             interp->resizeSession(session);
         }

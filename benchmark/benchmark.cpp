@@ -140,7 +140,7 @@ std::vector<float> doBench(Model& model, int loop, int warmup = 10, int forward 
 
     // if the model has not the input dimension, umcomment the below code to set the input dims
     // std::vector<int> dims{1, 3, 224, 224};
-    // net->resizeTensor(input, dims);
+    // net->resizeTensor(session, input, dims);
     // net->resizeSession(session);
 
     const MNN::Backend* inBackend = net->getBackend(session, input);

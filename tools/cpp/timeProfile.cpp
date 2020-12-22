@@ -88,7 +88,7 @@ int main(int argc, const char* argv[]) {
     session               = net->createSession(config);
     auto inputTensor      = net->getSessionInput(session, NULL);
     if (!inputDims.empty()) {
-        net->resizeTensor(inputTensor, inputDims);
+        net->resizeTensor(session, inputTensor, inputDims);
         net->resizeSession(session);
     }
     net->releaseModel();

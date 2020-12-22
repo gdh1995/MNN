@@ -127,7 +127,7 @@ int runEvaluation(const char* modelPath, const char* preTreatConfig) {
     }
     // set batch to be 1
     shape[0] = 1;
-    classficationInterpreter->resizeTensor(inputTensor, shape);
+    classficationInterpreter->resizeTensor(classficationSession, inputTensor, shape);
     classficationInterpreter->resizeSession(classficationSession);
 
     auto outputTensor = classficationInterpreter->getSessionOutput(classficationSession, nullptr);

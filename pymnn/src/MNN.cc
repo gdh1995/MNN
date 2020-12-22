@@ -681,21 +681,28 @@ static PyObject* PyMNNInterpreter_resizeSession(PyMNNInterpreter *self, PyObject
 }
 
 static PyObject* PyMNNInterpreter_resizeTensor(PyMNNInterpreter *self, PyObject *args) {
+    PyMNNSession* session = NULL;
     PyMNNTensor* tensor = NULL;
     PyObject* shape = NULL;
-    if (!PyArg_ParseTuple(args, "OO", &tensor, &shape)) {
+    if (!PyArg_ParseTuple(args, "OOO", &session, &tensor, &shape)) {
+        return NULL;
+    }
+
+    if (!PyObject_TypeCheck(session, PyType_FindTLSType(&PyMNNSessionType))) {
+        PyErr_SetString(PyExc_Exception,
+                        "PyMNNInterpreter_resizeTensor: First argument is not a MNN.Session instance");
         return NULL;
     }
 
     if (!PyObject_TypeCheck(tensor, PyType_FindTLSType(&PyMNNTensorType))) {
         PyErr_SetString(PyExc_Exception,
-                        "PyMNNInterpreter_resizeTensor: First argument is not a MNN.Tensor instance");
+                        "PyMNNInterpreter_resizeTensor: Second argument is not a MNN.Tensor instance");
         return NULL;
     }
     
     if (!PyTuple_Check(shape)) {
         PyErr_SetString(PyExc_Exception,
-                        "PyMNNInterpreter_resizeTensor: Second argument is not a tuple");
+                        "PyMNNInterpreter_resizeTensor: Third argument is not a tuple");
         return NULL;
     }
 
@@ -707,7 +714,7 @@ static PyObject* PyMNNInterpreter_resizeTensor(PyMNNInterpreter *self, PyObject 
         vShape.push_back(shapeItem);
     }
 
-    self->interpreter->resizeTensor(tensor->tensor, vShape);
+    self->interpreter->resizeTensor(session->session, tensor->tensor, vShape);
     Py_RETURN_NONE;
 }
 #ifndef PYMNN_USE_ALINNPYTHON

@@ -202,7 +202,7 @@ static int test_main(int argc, const char* argv[]) {
         inputTensor = net->getSessionInput(session, NULL);
         if (!inputDims.empty()) {
             MNN_PRINT("===========> Resize Again...\n");
-            net->resizeTensor(inputTensor, inputDims);
+            net->resizeTensor(session, inputTensor, inputDims);
             net->resizeSession(session);
         }
     }

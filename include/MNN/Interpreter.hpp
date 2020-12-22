@@ -307,7 +307,7 @@ public:
      * @param tensor    given tensor.
      * @param dims      new dims. at most 6 dims.
      */
-    void resizeTensor(Tensor* tensor, const std::vector<int>& dims);
+    void resizeTensor(Session *session, Tensor* tensor, const std::vector<int>& dims);
 
     /**
      * @brief resize given tensor by nchw.
@@ -316,7 +316,7 @@ public:
      * @param height / H.
      * @param width / W
      */
-    void resizeTensor(Tensor* tensor, int batch, int channel, int height, int width);
+    void resizeTensor(Session *session, Tensor* tensor, int batch, int channel, int height, int width);
 
     /**
      * @brief get backend used to create given tensor.

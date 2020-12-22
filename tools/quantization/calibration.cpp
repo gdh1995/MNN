@@ -151,12 +151,12 @@ void Calibration::_initMNNSession(const uint8_t* modelBuffer, const int bufferSi
         _inputTensorDims[3] = _width;
     }
     if (_featureQuantizeMethod == "KL") {
-        _interpreter->resizeTensor(_inputTensor, _inputTensorDims);
+        _interpreter->resizeTensor(_session, _inputTensor, _inputTensorDims);
         _interpreter->resizeSession(_session);
     } else if (_featureQuantizeMethod == "ADMM") {
         DCHECK((_imageNum * 4 * _height * _width) < (INT_MAX / 4)) << "Use Little Number of Images When Use ADMM";
         _inputTensorDims[0] = _imageNum;
-        _interpreter->resizeTensor(_inputTensor, _inputTensorDims);
+        _interpreter->resizeTensor(_session, _inputTensor, _inputTensorDims);
         _interpreter->resizeSession(_session);
     }
     _interpreter->releaseModel();

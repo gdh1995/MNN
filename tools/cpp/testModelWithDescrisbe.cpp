@@ -132,7 +132,7 @@ int main(int argc, const char* argv[]) {
     // resize
     for (int i = 0; i < numOfInputs; ++i) {
         auto inputTensor = net->getSessionInput(session, inputNames[i].c_str());
-        net->resizeTensor(inputTensor, inputDims[i]);
+        net->resizeTensor(session, inputTensor, inputDims[i]);
     }
     net->resizeSession(session);
     auto checkFunction = [&]() {

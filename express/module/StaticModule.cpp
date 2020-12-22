@@ -99,7 +99,7 @@ std::vector<Express::VARP> StaticModule::onForward(const std::vector<Express::VA
         if (info->order == Express::NC4HW4) {
             des->dimensionFormat = MNN_DATA_FORMAT_NC4HW4;
         }
-        mNet->resizeTensor(mInputTensors[i], info->dim);
+        mNet->resizeTensor(mSession, mInputTensors[i], info->dim);
     }
     if (!mShapeFix) {
         for (int i=0; i<inputs.size(); ++i) {
