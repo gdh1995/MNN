@@ -358,3 +358,5 @@ project/ios/MNN.framework
 
 pymnn_build/
 gdh*log*
+project/android/a7*
+project/android/a8*

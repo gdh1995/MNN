@@ -186,7 +186,7 @@ static vector<Op*> generateOneSchedulePath(const Net* net, const vector<int> &st
         }
       }
       std::reverse(oplists.begin(), oplists.end());
-      std::sort(oplists.begin(), oplists.end(), [&opIndexMap](auto a, auto b) -> bool {
+      std::sort(oplists.begin(), oplists.end(), [&opIndexMap](Op* a, Op* b) -> bool {
         return opIndexMap.at(a) < opIndexMap.at(b);
       });
     }
