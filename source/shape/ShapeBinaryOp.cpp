@@ -54,7 +54,7 @@ public:
         int input1Dims = input1->dimensions();
         if (input0Dims < input1Dims) {
             bool areTailAllOnes = true;
-            for (int i = input1Dims - input0Dims; i < input1Dims; i++) {
+            for (int i = input0Dims; i < input1Dims; i++) {
                 if (input1->buffer().dim[i].extent != 1) {
                     areTailAllOnes = false;
                     break;
