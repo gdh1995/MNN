@@ -10,12 +10,9 @@
 #include "MNN_generated.h"
 namespace MNN {
 namespace Express {
-std::shared_ptr<TFExtraManager> TFExtraManager::gInstance;
-std::shared_ptr<TFExtraManager> TFExtraManager::get() {
-    if (nullptr == gInstance) {
-        gInstance.reset(new TFExtraManager);
-    }
-    return gInstance;
+TFExtraManager* TFExtraManager::get() {
+    static std::unique_ptr<TFExtraManager> gInstance(new TFExtraManager);
+    return gInstance.get();
 }
 
 void TFExtraManager::insert(const std::string& name, std::shared_ptr<Transform> transform) {

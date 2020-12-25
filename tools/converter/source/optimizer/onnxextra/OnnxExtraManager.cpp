@@ -10,12 +10,9 @@
 #include "MNN_generated.h"
 namespace MNN {
 namespace Express {
-std::shared_ptr<OnnxExtraManager> OnnxExtraManager::gInstance;
-std::shared_ptr<OnnxExtraManager> OnnxExtraManager::get() {
-    if (nullptr == gInstance) {
-        gInstance.reset(new OnnxExtraManager);
-    }
-    return gInstance;
+OnnxExtraManager* OnnxExtraManager::get() {
+    static std::unique_ptr<OnnxExtraManager> gInstance(new OnnxExtraManager);
+    return gInstance.get();
 }
 
 void OnnxExtraManager::insert(const std::string& name, std::shared_ptr<Transform> transform) {

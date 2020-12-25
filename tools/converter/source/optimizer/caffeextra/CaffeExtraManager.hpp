@@ -24,6 +24,7 @@ public:
     std::shared_ptr<Transform> find(const std::string& name) const;
     static CaffeExtraManager *get();
 private:
+    CaffeExtraManager() = default;
     std::map<std::string, std::shared_ptr<Transform>> mTransform;
 };
 }  // namespace Express

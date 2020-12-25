@@ -11,7 +11,7 @@
 namespace MNN {
 namespace Express {
 CaffeExtraManager* CaffeExtraManager::get() {
-    static std::shared_ptr<CaffeExtraManager> gInstance(new CaffeExtraManager);
+    static std::unique_ptr<CaffeExtraManager> gInstance(new CaffeExtraManager);
     return gInstance.get();
 }
 

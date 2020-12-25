@@ -65,6 +65,7 @@ public:
     static void run(const char* name);
 
 private:
+    MNNTestSuite() = default;
     /** get shared instance */
     static MNNTestSuite* gInstance;
     /** registered test cases */

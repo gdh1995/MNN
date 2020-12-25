@@ -9,11 +9,9 @@
 #include "MNNTestSuite.h"
 #include <stdlib.h>
 
-MNNTestSuite* MNNTestSuite::gInstance = NULL;
 
 MNNTestSuite* MNNTestSuite::get() {
-    if (gInstance == NULL)
-        gInstance = new MNNTestSuite;
+    static MNNTestSuite* gInstance = new MNNTestSuite;
     return gInstance;
 }
 

@@ -9,11 +9,9 @@
 #include "DemoUnit.hpp"
 #include <stdlib.h>
 
-DemoUnitSet* DemoUnitSet::gInstance = NULL;
 
 DemoUnitSet* DemoUnitSet::get() {
-    if (gInstance == NULL)
-        gInstance = new DemoUnitSet;
+    static DemoUnitSet* gInstance = new DemoUnitSet;
     return gInstance;
 }
 
